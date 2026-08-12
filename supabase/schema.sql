@@ -20,7 +20,29 @@ create table if not exists profiles (
   journey_progress int not null,
   saved_listings int not null default 0,
   date_of_birth date,
-  license_issued_date date
+  license_issued_date date,
+  expense_rent numeric not null default 0,
+  expense_child_support numeric not null default 0,
+  expense_loan_repayments numeric not null default 0,
+  expense_groceries numeric not null default 0,
+  expense_other numeric not null default 0,
+  -- No FK constraint: cars is shared catalog data created later in this file,
+  -- and profiles must exist before cars/dealers can be inserted.
+  selected_car_id text,
+  rights_acknowledged boolean not null default false,
+  rights_acknowledged_at timestamptz,
+  language text not null default 'en'
+);
+
+-- Unlimited free-form expense entries per profile, replacing the old fixed
+-- 5-category columns above (kept for backward compatibility, no longer
+-- written to by the app).
+create table if not exists expenses (
+  id bigint generated always as identity primary key,
+  profile_id uuid references profiles(id) on delete cascade,
+  label text not null,
+  amount numeric not null default 0,
+  created_at timestamptz not null default now()
 );
 
 insert into profiles (first_name, last_name, member_since, province, city, employment_status, monthly_income, buying_goal, credit_score, credit_bureau, buying_power, journey_progress, saved_listings)
@@ -66,7 +88,13 @@ insert into dealers (id, name, city, province, brands, website) values
   ('mercedes-benz-stellenbosch', 'Mercedes-Benz Stellenbosch', 'Stellenbosch', 'Western Cape', array['Ford'], 'https://supergroupdealerships.co.za'),
   ('jlr-east-rand', 'Jaguar Land Rover East Rand', 'East Rand', 'Gauteng', array['GWM'], 'https://supergroupdealerships.co.za'),
   ('vw-rustenburg', 'Volkswagen Rustenburg', 'Rustenburg', 'North West', array['Audi'], 'https://supergroupdealerships.co.za'),
-  ('mercedes-benz-paarl', 'Mercedes-Benz Paarl', 'Paarl', 'Western Cape', array['Mercedes-Benz'], 'https://supergroupdealerships.co.za')
+  ('mercedes-benz-paarl', 'Mercedes-Benz Paarl', 'Paarl', 'Western Cape', array['Mercedes-Benz'], 'https://supergroupdealerships.co.za'),
+  ('cmh-kempster-ford-durban-south', 'CMH Kempster Ford Durban South', 'Durban', 'KwaZulu-Natal', array['Ford'], 'https://cmh.co.za'),
+  ('cfao-toyota-port-elizabeth', 'CFAO Mobility Toyota Port Elizabeth', 'Gqeberha', 'Eastern Cape', array['Toyota'], 'https://www.toyota.co.za'),
+  ('cfao-toyota-bloemfontein', 'CFAO Mobility Toyota Bloemfontein', 'Bloemfontein', 'Free State', array['Toyota'], 'https://www.toyota.co.za'),
+  ('upington-toyota', 'Upington Toyota', 'Upington', 'Northern Cape', array['Toyota'], 'https://www.toyota.co.za'),
+  ('cfao-toyota-limpopo', 'CFAO Mobility Toyota Limpopo', 'Polokwane', 'Limpopo', array['Toyota'], 'https://www.toyota.co.za'),
+  ('motus-toyota-nelspruit', 'Motus Toyota Nelspruit', 'Mbombela', 'Mpumalanga', array['Toyota'], 'https://www.toyota.co.za')
 on conflict (id) do nothing;
 
 -- 4. Cars — real current listings scraped from Super Group Dealerships
@@ -141,7 +169,7 @@ create table if not exists journey_stages (
 
 insert into journey_stages (id, key, title, tagline, description, time, status, actions, href) values
   (1, 'know-yourself', 'Know Yourself', 'Discovery', 'Build your financial profile and discover your realistic buying power.', '10 min', 'completed',
-    '[{"label":"Complete financial health questionnaire","done":true},{"label":"Connect your credit score","done":true},{"label":"Set your buying goal","done":true}]', '/credit'),
+    '[{"label":"Complete financial health questionnaire","done":true},{"label":"Connect your credit score","done":true},{"label":"Set your buying goal","done":true}]', '/know-yourself'),
   (2, 'know-rights', 'Know Your Rights', 'Education', 'Learn what dealerships can and cannot do under the CPA and NCA.', '15 min', 'completed',
     '[{"label":"CPA rights module","done":true},{"label":"NCA protections module","done":true},{"label":"Red Flag Detector quiz","done":true}]', '/rights'),
   (3, 'know-market', 'Know The Market', 'Research', 'Compare vehicles, depreciation and total cost of ownership for SA.', '20 min', 'current',
@@ -232,6 +260,7 @@ alter table journey_stages enable row level security;
 alter table tips enable row level security;
 alter table documents enable row level security;
 alter table quotations enable row level security;
+alter table expenses enable row level security;
 
 drop policy if exists "public read" on profiles;
 drop policy if exists "public read" on credit_history;
@@ -242,6 +271,7 @@ drop policy if exists "public read" on journey_stages;
 drop policy if exists "public read" on tips;
 drop policy if exists "public read" on documents;
 drop policy if exists "public read" on quotations;
+drop policy if exists "public read" on expenses;
 
 create policy "public read" on profiles for select using (true);
 create policy "public read" on credit_history for select using (true);
@@ -252,3 +282,4 @@ create policy "public read" on journey_stages for select using (true);
 create policy "public read" on tips for select using (true);
 create policy "public read" on documents for select using (true);
 create policy "public read" on quotations for select using (true);
+create policy "public read" on expenses for select using (true);

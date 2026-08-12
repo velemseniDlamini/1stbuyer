@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { TrendingUp, Info } from 'lucide-react'
 import { PageHeader, StatusBadge } from '@/components/page-header'
 import { AnimatedCounter } from '@/components/animated-counter'
-import { PRIME_RATE } from '@/lib/data'
+import { PRIME_RATE, disposableIncome, totalMonthlyExpenses } from '@/lib/data'
 import { useUser } from '@/contexts/user-context'
 import { formatRand } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -33,15 +33,18 @@ export default function FinancePage() {
         : (financed * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -n))
     const totalPaid = installment * n + deposit + balloon
     const totalInterest = totalPaid - price
-    const ratio = installment / (user?.monthlyIncome || 1)
+    const disposable = user ? disposableIncome(user) : 0
+    const ratio = installment / (disposable > 0 ? disposable : 1)
 
     let affordability: { label: string; tone: 'success' | 'warning' | 'danger' }
-    if (ratio <= 0.2) affordability = { label: 'Comfortable', tone: 'success' }
+    if (disposable <= 0) affordability = { label: 'No disposable income', tone: 'danger' }
+    else if (ratio <= 0.2) affordability = { label: 'Comfortable', tone: 'success' }
     else if (ratio <= 0.3) affordability = { label: 'A stretch', tone: 'warning' }
     else affordability = { label: 'Risky', tone: 'danger' }
 
-    return { deposit, balloon, installment, totalPaid, totalInterest, ratio, affordability }
-  }, [price, depositPct, rate, term, balloonOn, balloonPct, user?.monthlyIncome])
+    return { deposit, balloon, installment, totalPaid, totalInterest, ratio, affordability, disposable }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [price, depositPct, rate, term, balloonOn, balloonPct, user])
 
   if (!user) return null
 
@@ -60,7 +63,7 @@ export default function FinancePage() {
               {result.affordability.label}
             </StatusBadge>
             <span className="text-xs text-muted-foreground">
-              {Math.round(result.ratio * 100)}% of your gross income
+              {Math.round(result.ratio * 100)}% of your disposable income (net income minus expenses)
             </span>
           </div>
 
@@ -175,8 +178,9 @@ export default function FinancePage() {
         <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
           <TrendingUp className="mt-0.5 size-4 shrink-0 text-primary" />
           <span>
-            Keep your instalment under 20% of gross income for comfort. Guardian recommends
-            stress-testing every deal against a 2% rate rise before you sign.
+            Keep your instalment under 20% of disposable income (net income after rent, debt,
+            groceries and other expenses) for comfort. Guardian recommends stress-testing every
+            deal against a 2% rate rise before you sign.
           </span>
         </div>
       </div>

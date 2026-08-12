@@ -21,6 +21,41 @@ import {
 // profile_id and has NO demo fallback: an empty result for a real user is a
 // legitimate state (they just haven't added anything yet), not an error.
 
+export type Expense = { id: string; label: string; amount: number }
+
+export async function getExpenses(profileId: string): Promise<Expense[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('expenses')
+    .select('id, label, amount')
+    .eq('profile_id', profileId)
+    .order('id', { ascending: true })
+  return (data ?? []).map((e) => ({ id: String(e.id), label: e.label, amount: e.amount }))
+}
+
+export async function addExpense(profileId: string, label: string, amount: number): Promise<Expense | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('expenses')
+    .insert({ profile_id: profileId, label, amount })
+    .select('id, label, amount')
+    .single()
+  if (error || !data) return null
+  return { id: String(data.id), label: data.label, amount: data.amount }
+}
+
+export async function updateExpense(id: string, label: string, amount: number): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('expenses').update({ label, amount }).eq('id', id)
+  return !error
+}
+
+export async function deleteExpense(id: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('expenses').delete().eq('id', id)
+  return !error
+}
+
 export async function getCreditHistory(profileId: string) {
   if (!supabase) return []
   const { data } = await supabase
@@ -133,6 +168,35 @@ export async function getCars(): Promise<Car[]> {
     image: c.image,
     listingUrl: c.listing_url ?? undefined,
   }))
+}
+
+// Choosing a car is the real trigger that moves the buyer journey forward —
+// it marks the "Find Your Car" stage (5 of 7) as done for this user. journey
+// progress is stored as a 0-100 number on the profile; deriveStageStatuses()
+// (lib/data.ts) turns that into per-stage completed/current/locked state.
+export async function selectCar(profileId: string, carId: string) {
+  if (!supabase) return false
+  const FIND_CAR_STAGE_PROGRESS = Math.ceil((5 / 7) * 100) // 72%
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('journey_progress')
+    .eq('id', profileId)
+    .maybeSingle()
+  const newProgress = Math.max(profile?.journey_progress ?? 0, FIND_CAR_STAGE_PROGRESS)
+  const { error } = await supabase
+    .from('profiles')
+    .update({ selected_car_id: carId, journey_progress: newProgress })
+    .eq('id', profileId)
+  return !error
+}
+
+export async function clearSelectedCar(profileId: string) {
+  if (!supabase) return false
+  const { error } = await supabase
+    .from('profiles')
+    .update({ selected_car_id: null })
+    .eq('id', profileId)
+  return !error
 }
 
 export async function getDocuments(profileId: string): Promise<DocItem[]> {

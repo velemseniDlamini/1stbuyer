@@ -1,12 +1,14 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { Star, Shield, Check, Info, Car } from 'lucide-react'
 import { PageHeader, StatusBadge } from '@/components/page-header'
-import { insuranceProviders as fallbackInsuranceProviders } from '@/lib/data'
-import { getInsuranceProviders } from '@/lib/db'
+import { insuranceProviders as fallbackInsuranceProviders, cars as fallbackCars } from '@/lib/data'
+import { getInsuranceProviders, getCars } from '@/lib/db'
 import { useDb } from '@/lib/use-db'
-import { formatRand } from '@/lib/format'
+import { useUser } from '@/contexts/user-context'
+import { formatRand, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const coverageTypes = ['Comprehensive', 'Third-Party F&T', 'Third-Party'] as const
@@ -21,7 +23,10 @@ const providerUrls: Record<string, string> = {
 }
 
 export default function InsurancePage() {
+  const { profile: user } = useUser()
   const { data: insuranceProviders } = useDb(getInsuranceProviders, fallbackInsuranceProviders)
+  const { data: cars } = useDb(getCars, fallbackCars)
+  const selectedCar = user?.selectedCarId ? cars.find((c) => c.id === user.selectedCarId) : undefined
   const [coverage, setCoverage] = useState<(typeof coverageTypes)[number]>('Comprehensive')
   const [hasTracker, setHasTracker] = useState(true)
   const [garaged, setGaraged] = useState(true)
@@ -54,15 +59,32 @@ export default function InsurancePage() {
         </div>
 
         {/* Vehicle context */}
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-          <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
-            <Car className="size-5" />
-          </span>
-          <div className="text-sm">
-            <p className="font-medium">Toyota Corolla Cross 1.8 XS (2023)</p>
-            <p className="text-xs text-muted-foreground">Johannesburg, Gauteng · R389,900</p>
+        {selectedCar ? (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Car className="size-5" />
+            </span>
+            <div className="text-sm">
+              <p className="font-medium">{selectedCar.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedCar.year} · {formatNumber(selectedCar.mileage)} km · {formatRand(selectedCar.price)}
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <Link
+            href="/explore"
+            className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card p-4"
+          >
+            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Car className="size-5" />
+            </span>
+            <div className="text-sm">
+              <p className="font-medium">No vehicle chosen yet</p>
+              <p className="text-xs text-muted-foreground">Choose a car in Explore to quote insurance for it</p>
+            </div>
+          </Link>
+        )}
 
         {/* Coverage selector */}
         <div>

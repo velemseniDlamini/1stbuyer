@@ -1,3 +1,5 @@
+import type { LanguageCode } from './i18n'
+
 export type BuyingGoal = 'first-time' | 'trade-in' | 'replacing' | 'additional' | 'browsing'
 
 export type EmploymentStatus =
@@ -14,6 +16,7 @@ export type UserProfile = {
   province: string
   city: string
   employmentStatus: EmploymentStatus
+  // Net (take-home) monthly income — after tax and deductions, not gross.
   monthlyIncome: number
   buyingGoal: BuyingGoal
   creditScore: number
@@ -23,6 +26,29 @@ export type UserProfile = {
   savedListings: number
   dateOfBirth: string | null
   licenseIssuedDate: string | null
+  expenseRent: number
+  expenseChildSupport: number
+  expenseLoanRepayments: number
+  expenseGroceries: number
+  expenseOther: number
+  selectedCarId: string | null
+  rightsAcknowledged: boolean
+  rightsAcknowledgedAt: string | null
+  language: LanguageCode
+}
+
+export function totalMonthlyExpenses(user: UserProfile): number {
+  return (
+    user.expenseRent +
+    user.expenseChildSupport +
+    user.expenseLoanRepayments +
+    user.expenseGroceries +
+    user.expenseOther
+  )
+}
+
+export function disposableIncome(user: UserProfile): number {
+  return user.monthlyIncome - totalMonthlyExpenses(user)
 }
 
 export const user: UserProfile = {
@@ -42,6 +68,15 @@ export const user: UserProfile = {
   savedListings: 5,
   dateOfBirth: '1996-04-12',
   licenseIssuedDate: '2015-06-01',
+  expenseRent: 8500,
+  expenseChildSupport: 0,
+  expenseLoanRepayments: 2200,
+  expenseGroceries: 3500,
+  expenseOther: 1500,
+  selectedCarId: null,
+  rightsAcknowledged: false,
+  rightsAcknowledgedAt: null,
+  language: 'en',
 }
 
 export const creditHistory = [
@@ -94,6 +129,52 @@ export type Stage = {
   href?: string
 }
 
+// journey_stages content is shared/global reference data — every user reads
+// the same rows. Per-user progress is derived here from real, verifiable
+// completion signals rather than a single stored percentage:
+//   - "know-yourself" is complete only once validateKnowYourself() passes
+//     (see lib/journey-validation.ts) — real fields, not a button click.
+//   - "know-rights" is complete only once the user has ticked the
+//     acknowledgment checkbox on that stage.
+//   - Stages beyond that have no defined real trigger yet, so the next one
+//     is shown as "current" (reachable) and the rest stay "locked" rather
+//     than faking progress with an arbitrary percentage.
+export function deriveStageStatuses(
+  stages: Stage[],
+  opts: { knowYourselfComplete: boolean; rightsComplete: boolean },
+): Stage[] {
+  const sorted = [...stages].sort((a, b) => a.id - b.id)
+  let currentAssigned = false
+
+  function statusFor(index: number, forcedComplete?: boolean): Stage['status'] {
+    if (forcedComplete !== undefined) {
+      if (forcedComplete) return 'completed'
+      if (!currentAssigned) {
+        currentAssigned = true
+        return 'current'
+      }
+      return 'locked'
+    }
+    if (!currentAssigned) {
+      currentAssigned = true
+      return 'current'
+    }
+    return 'locked'
+  }
+
+  return sorted.map((stage, i) => {
+    let status: Stage['status']
+    if (stage.key === 'know-yourself') {
+      status = statusFor(i, opts.knowYourselfComplete)
+    } else if (stage.key === 'know-rights') {
+      status = opts.knowYourselfComplete ? statusFor(i, opts.rightsComplete) : 'locked'
+    } else {
+      status = opts.knowYourselfComplete && opts.rightsComplete ? statusFor(i) : 'locked'
+    }
+    return { ...stage, status }
+  })
+}
+
 export const journeyStages: Stage[] = [
   {
     id: 1,
@@ -108,7 +189,7 @@ export const journeyStages: Stage[] = [
       { label: 'Connect your credit score', done: true },
       { label: 'Set your buying goal', done: true },
     ],
-    href: '/credit',
+    href: '/know-yourself',
   },
   {
     id: 2,
@@ -263,6 +344,16 @@ export const dealers: Dealer[] = [
   { id: 'jlr-east-rand', name: 'Jaguar Land Rover East Rand', city: 'East Rand', province: 'Gauteng', brands: ['GWM'], website: 'https://supergroupdealerships.co.za' },
   { id: 'vw-rustenburg', name: 'Volkswagen Rustenburg', city: 'Rustenburg', province: 'North West', brands: ['Audi'], website: 'https://supergroupdealerships.co.za' },
   { id: 'mercedes-benz-paarl', name: 'Mercedes-Benz Paarl', city: 'Paarl', province: 'Western Cape', brands: ['Mercedes-Benz'], website: 'https://supergroupdealerships.co.za' },
+  // Real dealers verified via CMH's careers sitemap (cmh.co.za) and Toyota
+  // SA's official dealer-locator sitemap (toyota.co.za) — both permit
+  // ClaudeBot in robots.txt — to cover the provinces Super Group doesn't
+  // operate in.
+  { id: 'cmh-kempster-ford-durban-south', name: 'CMH Kempster Ford Durban South', city: 'Durban', province: 'KwaZulu-Natal', brands: ['Ford'], website: 'https://cmh.co.za' },
+  { id: 'cfao-toyota-port-elizabeth', name: 'CFAO Mobility Toyota Port Elizabeth', city: 'Gqeberha', province: 'Eastern Cape', brands: ['Toyota'], website: 'https://www.toyota.co.za' },
+  { id: 'cfao-toyota-bloemfontein', name: 'CFAO Mobility Toyota Bloemfontein', city: 'Bloemfontein', province: 'Free State', brands: ['Toyota'], website: 'https://www.toyota.co.za' },
+  { id: 'upington-toyota', name: 'Upington Toyota', city: 'Upington', province: 'Northern Cape', brands: ['Toyota'], website: 'https://www.toyota.co.za' },
+  { id: 'cfao-toyota-limpopo', name: 'CFAO Mobility Toyota Limpopo', city: 'Polokwane', province: 'Limpopo', brands: ['Toyota'], website: 'https://www.toyota.co.za' },
+  { id: 'motus-toyota-nelspruit', name: 'Motus Toyota Nelspruit', city: 'Mbombela', province: 'Mpumalanga', brands: ['Toyota'], website: 'https://www.toyota.co.za' },
 ]
 
 export type Car = {

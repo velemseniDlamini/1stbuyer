@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTheme } from '@/components/theme-provider'
 import {
@@ -17,10 +17,13 @@ import {
   LogOut,
   ChevronRight,
   Target,
+  ArrowRight,
 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { useUser } from '@/contexts/user-context'
-import { supabase } from '@/lib/supabase'
+import { getExpenses } from '@/lib/db'
+import { useDb } from '@/lib/use-db'
+import { assessAffordability } from '@/lib/finance-estimate'
 import { formatRand } from '@/lib/format'
 
 const goalLabels: Record<string, string> = {
@@ -32,29 +35,21 @@ const goalLabels: Record<string, string> = {
 }
 
 export default function ProfilePage() {
-  const { profile: user, signOut, refreshProfile } = useUser()
+  const { profile: user, signOut } = useUser()
   const { theme, toggleTheme } = useTheme()
   const isDark = theme !== 'light'
   const router = useRouter()
   const [notifications, setNotifications] = useState(true)
   const [guardianAlerts, setGuardianAlerts] = useState(true)
   const [editingDetails, setEditingDetails] = useState(false)
-  const [dob, setDob] = useState(user?.dateOfBirth ?? '')
-  const [licenseDate, setLicenseDate] = useState(user?.licenseIssuedDate ?? '')
-  const [savingDates, setSavingDates] = useState(false)
+  const fetchExpenses = useCallback(() => (user ? getExpenses(user.id) : Promise.resolve([])), [user])
+  const { data: expenses } = useDb(fetchExpenses, [])
 
   if (!user) return null
 
-  async function saveDates() {
-    if (!supabase || !user) return
-    setSavingDates(true)
-    await supabase
-      .from('profiles')
-      .update({ date_of_birth: dob || null, license_issued_date: licenseDate || null })
-      .eq('id', user.id)
-    await refreshProfile()
-    setSavingDates(false)
-  }
+  const currentExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const currentDisposable = user.monthlyIncome - currentExpenses
+  const affordability = assessAffordability(user, currentExpenses)
 
   return (
     <div>
@@ -82,9 +77,40 @@ export default function ProfilePage() {
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Buyer profile</h3>
           <div className="grid grid-cols-2 gap-3">
             <InfoTile icon={Target} label="Goal" value={goalLabels[user.buyingGoal]} />
-            <InfoTile icon={Wallet} label="Monthly income" value={formatRand(user.monthlyIncome)} />
+            <InfoTile icon={Wallet} label="Net monthly income" value={formatRand(user.monthlyIncome)} />
             <InfoTile icon={Briefcase} label="Employment" value={user.employmentStatus} />
             <InfoTile icon={MapPin} label="Location" value={`${user.city}, ${user.province}`} />
+          </div>
+        </section>
+
+        {/* Affordability (read-only summary — edited in Know Yourself) */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">Affordability</h3>
+            <button
+              type="button"
+              onClick={() => router.push('/know-yourself')}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              Edit in Know Yourself <ArrowRight className="size-3" />
+            </button>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Monthly expenses</p>
+                <p className="font-semibold">{formatRand(currentExpenses)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Disposable income</p>
+                <p className="font-semibold">{formatRand(currentDisposable)}</p>
+              </div>
+            </div>
+            <div className={`mt-3 rounded-lg p-2.5 text-xs ${affordability.qualifies ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+              {affordability.qualifies
+                ? `You likely qualify — est. buying power ${formatRand(affordability.maxVehiclePrice)}`
+                : affordability.reason}
+            </div>
           </div>
         </section>
 
@@ -146,46 +172,15 @@ export default function ProfilePage() {
               <Detail label="Name" value={`${user.firstName} ${user.lastName}`} />
               <Detail label="Goal" value={goalLabels[user.buyingGoal]} />
               <Detail label="Employment" value={user.employmentStatus} />
-              <Detail label="Monthly income" value={formatRand(user.monthlyIncome)} />
+              <Detail label="Net monthly income" value={formatRand(user.monthlyIncome)} />
               <Detail label="Location" value={`${user.city}, ${user.province}`} />
+              <Detail label="Date of birth" value={user.dateOfBirth ?? 'Not set'} />
+              <Detail label="License issued" value={user.licenseIssuedDate ?? 'Not set'} />
               <p className="pt-1 text-[11px] text-muted-foreground">
-                To change the above, update your Supabase <code>profiles</code> row directly for
-                now — in-app editing isn't wired up yet.
+                Employment, income and goal can be updated in Know Yourself. Date of birth and
+                license date lock permanently once set (used for finance rate estimates) —
+                contact support if either was entered incorrectly.
               </p>
-
-              <div className="mt-3 space-y-2 border-t border-border pt-3">
-                <p className="text-xs font-medium text-foreground">
-                  Used for estimated finance rates on listings
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-[11px] text-muted-foreground">Date of birth</label>
-                    <input
-                      type="date"
-                      value={dob}
-                      onChange={(e) => setDob(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-2 py-2 text-xs outline-none focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-[11px] text-muted-foreground">License issued</label>
-                    <input
-                      type="date"
-                      value={licenseDate}
-                      onChange={(e) => setLicenseDate(e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-2 py-2 text-xs outline-none focus:border-primary"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={saveDates}
-                  disabled={savingDates}
-                  className="w-full rounded-lg bg-primary py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                >
-                  {savingDates ? 'Saving…' : 'Save'}
-                </button>
-              </div>
             </div>
           )}
         </section>

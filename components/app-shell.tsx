@@ -4,16 +4,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Map, MessageCircle, Compass, User, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useLanguage } from '@/contexts/language-context'
 
 const navItems = [
-  { href: '/', label: 'Home', icon: Home },
-  { href: '/journey', label: 'Journey', icon: Map },
-  { href: '/explore', label: 'Explore', icon: Compass },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/', key: 'nav.home', icon: Home },
+  { href: '/journey', key: 'nav.journey', icon: Map },
+  { href: '/explore', key: 'nav.explore', icon: Compass },
+  { href: '/profile', key: 'nav.profile', icon: User },
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background md:my-6 md:min-h-[calc(100dvh-3rem)] md:rounded-3xl md:border md:border-border md:shadow-2xl md:overflow-hidden">
@@ -26,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="relative grid grid-cols-5 items-center px-2 py-2">
           {navItems.slice(0, 2).map((item) => (
-            <NavLink key={item.href} {...item} active={pathname === item.href} />
+            <NavLink key={item.href} href={item.href} icon={item.icon} label={t(item.key)} active={pathname === item.href} />
           ))}
 
           {/* Guardian FAB */}
@@ -47,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           {navItems.slice(2).map((item) => (
-            <NavLink key={item.href} {...item} active={pathname === item.href} />
+            <NavLink key={item.href} href={item.href} icon={item.icon} label={t(item.key)} active={pathname === item.href} />
           ))}
         </div>
       </nav>

@@ -32,10 +32,7 @@ export default function OnboardingPage() {
   const [city, setCity] = useState('')
   const [province, setProvince] = useState(provinces[0])
   const [employmentStatus, setEmploymentStatus] = useState<EmploymentStatus>('Permanently employed')
-  const [monthlyIncome, setMonthlyIncome] = useState('')
   const [buyingGoal, setBuyingGoal] = useState<BuyingGoal>('first-time')
-  const [dateOfBirth, setDateOfBirth] = useState('')
-  const [licenseIssuedDate, setLicenseIssuedDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,15 +57,13 @@ export default function OnboardingPage() {
       province,
       city,
       employment_status: employmentStatus,
-      monthly_income: Number(monthlyIncome) || 0,
+      monthly_income: 0,
       buying_goal: buyingGoal,
       credit_score: 0,
       credit_bureau: 'Not connected',
       buying_power: 0,
       journey_progress: 0,
       saved_listings: 0,
-      date_of_birth: dateOfBirth || null,
-      license_issued_date: licenseIssuedDate || null,
     })
 
     setSubmitting(false)
@@ -77,7 +72,7 @@ export default function OnboardingPage() {
       return
     }
     await refreshProfile()
-    router.push('/')
+    router.push('/know-yourself')
   }
 
   if (userLoading) {
@@ -94,9 +89,10 @@ export default function OnboardingPage() {
         <Logo />
       </div>
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6">
-        <h1 className="text-lg font-bold">Set up your profile</h1>
+        <h1 className="text-lg font-bold">Create your account</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          A few details so 1st Buyer can personalise your buying journey.
+          A few basics to get started — you&apos;ll complete your full financial picture in the next
+          step (Know Yourself).
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-3">
@@ -156,42 +152,6 @@ export default function OnboardingPage() {
             </select>
           </Field>
 
-          <Field label="Monthly income (ZAR)">
-            <input
-              required
-              type="number"
-              min={0}
-              value={monthlyIncome}
-              onChange={(e) => setMonthlyIncome(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Date of birth">
-              <input
-                required
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-              />
-            </Field>
-            <Field label="License issued">
-              <input
-                required
-                type="date"
-                value={licenseIssuedDate}
-                onChange={(e) => setLicenseIssuedDate(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-              />
-            </Field>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Used only to estimate finance rates on vehicle listings — younger drivers and newer
-            licenses typically carry a small risk premium with real lenders.
-          </p>
-
           <Field label="Buying goal">
             <div className="grid grid-cols-1 gap-2">
               {goals.map((g) => (
@@ -219,7 +179,7 @@ export default function OnboardingPage() {
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            Create profile
+            Create account
           </button>
         </form>
       </div>

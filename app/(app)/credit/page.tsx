@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { Lock, TrendingUp, ArrowRight, CheckCircle2, ExternalLink, RefreshCw } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { Lock, TrendingUp, ArrowRight, CheckCircle2, ExternalLink, RefreshCw, ChevronDown } from 'lucide-react'
 import { PageHeader, Overline } from '@/components/page-header'
 import { CreditGauge } from '@/components/credit-gauge'
 import { scoreFactors, creditBands, bandFor, PRIME_RATE } from '@/lib/data'
@@ -10,8 +10,9 @@ import { useDb } from '@/lib/use-db'
 import { useUser } from '@/contexts/user-context'
 import Link from 'next/link'
 
-const bureauLinks = [
-  { name: 'TransUnion (MyCreditCheck)', url: 'https://www.mycreditcheck.co.za' },
+const DEFAULT_BUREAU = { name: 'TransUnion', url: 'https://www.mycreditcheck.co.za' }
+
+const otherBureauLinks = [
   { name: 'ClearScore SA', url: 'https://www.clearscore.com/za' },
   { name: 'Experian', url: 'https://www.experian.co.za' },
   { name: 'XDS', url: 'https://www.xds.co.za' },
@@ -25,10 +26,13 @@ export default function CreditPage() {
   )
   const { data: creditHistory } = useDb(fetchHistory, [])
   const [showForm, setShowForm] = useState(false)
-  const [bureau, setBureau] = useState('TransUnion')
+  const [opened, setOpened] = useState(false)
+  const [showOtherBureaus, setShowOtherBureaus] = useState(false)
+  const [bureau, setBureau] = useState(DEFAULT_BUREAU.name)
   const [score, setScore] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const scoreInputRef = useRef<HTMLInputElement>(null)
 
   if (!user) return null
 
@@ -38,6 +42,18 @@ export default function CreditPage() {
   const minScore = creditHistory.length ? Math.min(...creditHistory.map((h) => h.score)) : 0
   const delta =
     creditHistory.length >= 2 ? creditHistory[creditHistory.length - 1].score - creditHistory[0].score : null
+
+  function startCheck(chosenBureau?: string) {
+    if (chosenBureau) setBureau(chosenBureau)
+    window.open(
+      chosenBureau ? otherBureauLinks.find((b) => b.name === chosenBureau)?.url ?? DEFAULT_BUREAU.url : DEFAULT_BUREAU.url,
+      '_blank',
+      'noopener,noreferrer',
+    )
+    setOpened(true)
+    setShowForm(true)
+    setTimeout(() => scoreInputRef.current?.focus(), 100)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -57,6 +73,7 @@ export default function CreditPage() {
     }
     await refreshProfile()
     setShowForm(false)
+    setOpened(false)
     setScore('')
   }
 
@@ -72,44 +89,51 @@ export default function CreditPage() {
           <section className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
             <Overline>Check your real credit score</Overline>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              South African credit bureaus don&apos;t offer a way for apps like this to pull your
-              score automatically — by law you&apos;re entitled to one free check a year directly
-              from the bureau. Get it from one of these, then enter the number here yourself:
+              No bureau offers a way for apps to pull your score automatically — but you get one
+              free check a year by law. Tap below, check it on {DEFAULT_BUREAU.name}, then come
+              straight back and drop the number in here.
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {bureauLinks.map((b) => (
-                <a
-                  key={b.name}
-                  href={b.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:border-primary/50"
-                >
-                  {b.name}
-                  <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
-                </a>
-              ))}
-            </div>
 
-            <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+            {!opened ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => startCheck()}
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground"
+                >
+                  Check on {DEFAULT_BUREAU.name} <ExternalLink className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOtherBureaus((v) => !v)}
+                  className="mt-2 flex w-full items-center justify-center gap-1 text-xs text-muted-foreground hover:text-primary"
+                >
+                  Used a different bureau? <ChevronDown className={`size-3.5 transition-transform ${showOtherBureaus ? 'rotate-180' : ''}`} />
+                </button>
+                {showOtherBureaus && (
+                  <div className="mt-2 grid grid-cols-1 gap-2">
+                    {otherBureauLinks.map((b) => (
+                      <button
+                        key={b.name}
+                        type="button"
+                        onClick={() => startCheck(b.name)}
+                        className="flex items-center justify-between gap-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground hover:border-primary/50"
+                      >
+                        {b.name}
+                        <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleSubmit} className="mt-4 space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Bureau</label>
-                  <select
-                    value={bureau}
-                    onChange={(e) => setBureau(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  >
-                    <option>TransUnion</option>
-                    <option>Experian</option>
-                    <option>Compuscan</option>
-                    <option>XDS</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">Your score</label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Your score from {bureau}
+                  </label>
                   <input
+                    ref={scoreInputRef}
                     type="number"
                     min={0}
                     max={999}
@@ -117,19 +141,29 @@ export default function CreditPage() {
                     value={score}
                     onChange={(e) => setScore(e.target.value)}
                     placeholder="e.g. 675"
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="w-full rounded-lg border border-primary/50 bg-background px-3 py-3 text-lg font-semibold outline-none focus:border-primary"
                   />
                 </div>
-              </div>
-              {error && <p className="text-xs text-destructive">{error}</p>}
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
-                {saving ? 'Saving…' : 'Save my score'}
-              </button>
-            </form>
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {saving ? 'Saving…' : 'Save my score'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpened(false)
+                    setShowForm(connected ? false : true)
+                  }}
+                  className="w-full text-center text-xs text-muted-foreground hover:text-primary"
+                >
+                  Start over
+                </button>
+              </form>
+            )}
           </section>
         )}
 

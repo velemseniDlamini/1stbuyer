@@ -11,24 +11,40 @@ import {
   Calculator,
   ShieldCheck,
   Car,
+  AlertCircle,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { MiniGauge } from '@/components/credit-gauge'
 import { AnimatedCounter } from '@/components/animated-counter'
 import { TipCard } from '@/components/tip-card'
 import { NotificationBell } from '@/components/notification-bell'
+import { LanguageSwitcher } from '@/components/language-switcher'
 import { Overline } from '@/components/page-header'
-import { getJourneyStages } from '@/lib/db'
-import { journeyStages as fallbackJourneyStages } from '@/lib/data'
+import { getJourneyStages, getCars, getExpenses } from '@/lib/db'
+import { journeyStages as fallbackJourneyStages, cars as fallbackCars, deriveStageStatuses } from '@/lib/data'
+import { validateKnowYourself, validateKnowRights } from '@/lib/journey-validation'
 import { useDb } from '@/lib/use-db'
 import { useUser } from '@/contexts/user-context'
+import { useLanguage } from '@/contexts/language-context'
+import { formatRand, formatNumber } from '@/lib/format'
+import { useCallback } from 'react'
 
 export default function DashboardPage() {
   const { profile: user } = useUser()
-  const { data: journeyStages } = useDb(getJourneyStages, fallbackJourneyStages)
-  const currentStage = journeyStages.find((s) => s.status === 'current')
+  const { t } = useLanguage()
+  const { data: rawStages } = useDb(getJourneyStages, fallbackJourneyStages)
+  const { data: cars } = useDb(getCars, fallbackCars)
+  const fetchExpenses = useCallback(() => (user ? getExpenses(user.id) : Promise.resolve([])), [user])
+  const { data: expenses } = useDb(fetchExpenses, [])
 
   if (!user) return null
+
+  const journeyStages = deriveStageStatuses(rawStages, {
+    knowYourselfComplete: validateKnowYourself(user, expenses).complete,
+    rightsComplete: validateKnowRights(user).complete,
+  })
+  const currentStage = journeyStages.find((s) => s.status === 'current')
+  const selectedCar = user.selectedCarId ? cars.find((c) => c.id === user.selectedCarId) : undefined
 
   return (
     <div>
@@ -36,6 +52,7 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
         <Logo />
         <div className="flex items-center gap-2">
+          <LanguageSwitcher />
           <NotificationBell />
           <Link
             href="/profile"
@@ -57,9 +74,26 @@ export default function DashboardPage() {
             })}
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-balance">
-            Good day, {user.firstName}
+            {t('home.greeting')}, {user.firstName}
           </h1>
         </div>
+
+        {/* Connect credit score prompt */}
+        {user.creditBureau === 'Not connected' && (
+          <Link
+            href="/credit"
+            className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
+              <AlertCircle className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Check your real credit score</p>
+              <p className="text-xs text-muted-foreground">Takes under a minute — unlocks your buying power</p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
 
         {/* Quick stats */}
         <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
@@ -68,7 +102,7 @@ export default function DashboardPage() {
             className="flex min-w-[150px] flex-col gap-1 rounded-xl border border-border bg-card p-4"
           >
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Gauge className="size-3.5" /> Credit Score
+              <Gauge className="size-3.5" /> {t('home.creditScore')}
             </span>
             <div className="flex items-end justify-between">
               <span className="text-2xl font-bold tabular-nums">{user.creditScore}</span>
@@ -78,7 +112,7 @@ export default function DashboardPage() {
 
           <div className="flex min-w-[150px] flex-col gap-1 rounded-xl border border-border bg-card p-4">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Wallet className="size-3.5" /> Buying Power
+              <Wallet className="size-3.5" /> {t('home.buyingPower')}
             </span>
             <span className="text-2xl font-bold tabular-nums text-primary">
               <AnimatedCounter value={user.buyingPower} format="zar" />
@@ -88,7 +122,7 @@ export default function DashboardPage() {
 
           <div className="flex min-w-[150px] flex-col gap-1 rounded-xl border border-border bg-card p-4">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Route className="size-3.5" /> Journey
+              <Route className="size-3.5" /> {t('home.journey')}
             </span>
             <span className="text-2xl font-bold tabular-nums">
               <AnimatedCounter value={user.journeyProgress} format="number" suffix="%" />
@@ -103,12 +137,43 @@ export default function DashboardPage() {
             className="flex min-w-[130px] flex-col gap-1 rounded-xl border border-border bg-card p-4"
           >
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Heart className="size-3.5" /> Saved
+              <Heart className="size-3.5" /> {t('home.saved')}
             </span>
             <span className="text-2xl font-bold tabular-nums">{user.savedListings}</span>
             <span className="text-[11px] text-muted-foreground">listings</span>
           </Link>
         </div>
+
+        {/* Your selected car */}
+        {selectedCar ? (
+          <Link
+            href="/explore"
+            className="flex items-center gap-3 rounded-xl border border-success/40 bg-success/5 p-4"
+          >
+            <div className="min-w-0 flex-1">
+              <Overline>Your car</Overline>
+              <p className="mt-1 truncate text-sm font-semibold">{selectedCar.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedCar.year} · {formatNumber(selectedCar.mileage)} km · {formatRand(selectedCar.price)}
+              </p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        ) : (
+          <Link
+            href="/explore"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Car className="size-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{t('home.chooseCar')}</p>
+              <p className="text-xs text-muted-foreground">Pick a vehicle to move your journey forward</p>
+            </div>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+          </Link>
+        )}
 
         {/* Continue journey */}
         {currentStage && (
@@ -147,15 +212,14 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Recent activity */}
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Recent activity</h2>
-          <div className="space-y-2">
-            <Activity icon={FileText} title="Sale agreement uploaded" meta="AI analysis running · 2h ago" />
-            <Activity icon={ShieldCheck} title="Guardian answered your CPA question" meta="Yesterday" />
-            <Activity icon={Car} title="Toyota Corolla Cross saved" meta="Motus Sandton · 2 days ago" />
-          </div>
-        </section>
+        {selectedCar && (
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Recent activity</h2>
+            <div className="space-y-2">
+              <Activity icon={Car} title={`${selectedCar.title} chosen`} meta="Your selected vehicle" />
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )

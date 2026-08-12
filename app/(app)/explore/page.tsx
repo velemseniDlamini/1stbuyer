@@ -1,51 +1,35 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import {
   MapPin,
   Phone,
   Navigation,
   Repeat,
-  Heart,
-  TrendingDown,
-  X,
   Check,
   Globe,
-  ExternalLink,
+  X,
 } from 'lucide-react'
 import { StatusBadge } from '@/components/page-header'
-import {
-  dealers as fallbackDealers,
-  cars as fallbackCars,
-  type Dealer,
-  type Car,
-  type UserProfile,
-} from '@/lib/data'
+import { dealers as fallbackDealers, cars as fallbackCars, type Dealer } from '@/lib/data'
 import { getDealers, getCars } from '@/lib/db'
 import { useDb } from '@/lib/use-db'
-import { useUser } from '@/contexts/user-context'
-import { estimateMonthlyInstallment } from '@/lib/finance-estimate'
-import { formatRand, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-type Tab = 'dealers' | 'cars'
+// NOTE: the "Vehicles" tab and per-vehicle "Choose this car" flow have been
+// removed from the UI for now (per request), but the underlying data/logic
+// (lib/db.ts: getCars/selectCar/clearSelectedCar, lib/data.ts: Car type) is
+// left intact and untouched so this can be re-enabled later without redoing
+// the journey-unlock wiring it powers.
 
 function mapsSearchUrl(query: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
 export default function ExplorePage() {
-  const { profile: user } = useUser()
   const { data: dealers } = useDb(getDealers, fallbackDealers)
   const { data: cars } = useDb(getCars, fallbackCars)
-  const [tab, setTab] = useState<Tab>('dealers')
-  const [brand, setBrand] = useState('All')
   const [compareIds, setCompareIds] = useState<string[]>([])
-  const [savedIds, setSavedIds] = useState<string[]>([])
-
-  const brands = ['All', ...Array.from(new Set(cars.map((c) => c.brand)))]
-  const filteredCars = brand === 'All' ? cars : cars.filter((c) => c.brand === brand)
 
   function toggleCompare(id: string) {
     setCompareIds((ids) =>
@@ -53,83 +37,43 @@ export default function ExplorePage() {
     )
   }
 
-  function toggleSaved(id: string) {
-    setSavedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
-  }
-
   const compareDealers = dealers.filter((d) => compareIds.includes(d.id))
+  const dealersByProvince = new Map<string, Dealer[]>()
+  for (const d of dealers) {
+    const list = dealersByProvince.get(d.province) ?? []
+    list.push(d)
+    dealersByProvince.set(d.province, list)
+  }
 
   return (
     <div>
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-xl">
-        <h1 className="text-lg font-bold">Explore</h1>
-        <p className="text-xs text-muted-foreground">Real listings from Super Group Dealerships</p>
-        <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
-          {(['dealers', 'cars'] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={cn(
-                'rounded-md py-2 text-sm font-semibold capitalize transition-colors',
-                tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground',
-              )}
-            >
-              {t === 'dealers' ? 'Dealerships' : 'Vehicles'}
-            </button>
-          ))}
-        </div>
-        {tab === 'cars' && (
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            {brands.map((b) => (
-              <button
-                key={b}
-                type="button"
-                onClick={() => setBrand(b)}
-                className={cn(
-                  'shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
-                  brand === b
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-primary',
-                )}
-              >
-                {b}
-              </button>
-            ))}
-          </div>
-        )}
+        <h1 className="text-lg font-bold">Dealerships</h1>
+        <p className="text-xs text-muted-foreground">Real dealers, grouped by province</p>
       </header>
 
-      <div className="space-y-3 px-4 py-5 pb-24">
-        {tab === 'dealers'
-          ? dealers.map((d) => (
-              <DealerCard
-                key={d.id}
-                dealer={d}
-                vehicleCount={cars.filter((c) => c.dealerId === d.id).length}
-                comparing={compareIds.includes(d.id)}
-                onToggleCompare={() => toggleCompare(d.id)}
-              />
-            ))
-          : filteredCars.length > 0
-            ? filteredCars.map((c) => (
-                <CarCard
-                  key={c.id}
-                  car={c}
-                  dealer={dealers.find((d) => d.id === c.dealerId)}
-                  user={user}
-                  saved={savedIds.includes(c.id)}
-                  onToggleSaved={() => toggleSaved(c.id)}
+      <div className="space-y-6 px-4 py-5 pb-24">
+        {[...dealersByProvince.entries()].map(([province, provinceDealers]) => (
+          <section key={province}>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+              {province} <span className="font-normal">({provinceDealers.length})</span>
+            </h2>
+            <div className="space-y-3">
+              {provinceDealers.map((d) => (
+                <DealerCard
+                  key={d.id}
+                  dealer={d}
+                  vehicleCount={cars.filter((c) => c.dealerId === d.id).length}
+                  comparing={compareIds.includes(d.id)}
+                  onToggleCompare={() => toggleCompare(d.id)}
                 />
-              ))
-            : (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                No vehicles found for {brand}.
-              </p>
-            )}
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
 
-      {tab === 'dealers' && compareIds.length > 0 && (
+      {compareIds.length > 0 && (
         <CompareBar
           count={compareIds.length}
           onClear={() => setCompareIds([])}
@@ -286,137 +230,5 @@ function CompareBar({
         </div>
       )}
     </>
-  )
-}
-
-function CarCard({
-  car,
-  dealer,
-  user,
-  saved,
-  onToggleSaved,
-}: {
-  car: Car
-  dealer?: Dealer
-  user: UserProfile | null
-  saved: boolean
-  onToggleSaved: () => void
-}) {
-  const hasBenchmark = car.marketValue !== car.price
-  const saving = car.marketValue - car.price
-  const goodDeal = hasBenchmark && saving > 0
-  const pct = hasBenchmark ? Math.abs(Math.round((saving / car.marketValue) * 100)) : 0
-  const [showAnalysis, setShowAnalysis] = useState(false)
-  const estimate = user ? estimateMonthlyInstallment(car.price, user) : null
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="relative aspect-[16/10] bg-muted">
-        <Image
-          src={car.image || '/placeholder.svg'}
-          alt={car.title}
-          fill
-          unoptimized
-          sizes="(max-width: 448px) 100vw, 448px"
-          className="object-cover"
-        />
-        <button
-          type="button"
-          onClick={onToggleSaved}
-          aria-label={saved ? 'Remove from saved' : 'Save vehicle'}
-          className={cn(
-            'absolute right-3 top-3 flex size-9 items-center justify-center rounded-full backdrop-blur transition-colors',
-            saved ? 'bg-primary text-primary-foreground' : 'bg-background/80 text-foreground hover:text-primary',
-          )}
-        >
-          <Heart className={cn('size-4', saved && 'fill-current')} />
-        </button>
-      </div>
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
-              {car.brand}
-            </span>
-            <p className="font-semibold leading-tight">{car.title}</p>
-            <p className="text-xs text-muted-foreground">
-              {car.year} · {formatNumber(car.mileage)} km · {car.transmission} · {car.fuel}
-            </p>
-            {dealer && (
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                At {dealer.name}, {dealer.city}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <p className="text-xl font-bold tabular-nums text-primary">{formatRand(car.price)}</p>
-            {hasBenchmark && (
-              <p className="text-[11px] text-muted-foreground">
-                Market: {formatRand(car.marketValue)}
-              </p>
-            )}
-          </div>
-          {goodDeal && (
-            <StatusBadge tone="success">
-              <TrendingDown className="size-3" /> Save {formatRand(saving)}
-            </StatusBadge>
-          )}
-        </div>
-
-        {estimate && (
-          <div className="mt-2 flex items-center justify-between rounded-lg bg-muted px-3 py-2">
-            <span className="text-[11px] text-muted-foreground">
-              Est. instalment · {estimate.rate.toFixed(2)}% · {estimate.termMonths}mo, {estimate.depositPct}% deposit
-            </span>
-            <span className="text-sm font-semibold tabular-nums">
-              {formatRand(estimate.installment)}/mo
-            </span>
-          </div>
-        )}
-
-        {hasBenchmark && (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowAnalysis((v) => !v)}
-              className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              {showAnalysis ? 'Hide analysis' : 'Is this a good deal?'}
-            </button>
-            {showAnalysis && (
-              <div className="mt-3 rounded-lg border border-border bg-background p-3 text-xs leading-relaxed text-muted-foreground">
-                {goodDeal ? (
-                  <p>
-                    <span className="font-semibold text-success">Good deal.</span> This listing is priced{' '}
-                    {formatRand(saving)} ({pct}%) below the market average of{' '}
-                    {formatRand(car.marketValue)} for a {car.year} {car.brand} at this mileage.
-                  </p>
-                ) : (
-                  <p>
-                    <span className="font-semibold text-warning">Above market.</span> This listing is priced{' '}
-                    {formatRand(Math.abs(saving))} ({pct}%) above the market average of{' '}
-                    {formatRand(car.marketValue)}. Worth negotiating or comparing other listings first.
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {car.listingUrl && (
-          <a
-            href={car.listingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10"
-          >
-            View real listing
-            <ExternalLink className="size-3.5" />
-          </a>
-        )}
-      </div>
-    </div>
   )
 }

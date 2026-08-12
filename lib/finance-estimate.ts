@@ -1,4 +1,4 @@
-import { PRIME_RATE, bandFor, type UserProfile } from './data'
+import { PRIME_RATE, bandFor, disposableIncome, type UserProfile } from './data'
 
 export function calculateInstallment(principal: number, annualRatePct: number, termMonths: number) {
   const monthlyRate = annualRatePct / 100 / 12
@@ -59,4 +59,58 @@ export function estimateMonthlyInstallment(price: number, user: UserProfile) {
   const rate = estimateRate(user)
   const installment = calculateInstallment(principal, rate, DEFAULT_TERM_MONTHS)
   return { installment, rate, deposit, termMonths: DEFAULT_TERM_MONTHS, depositPct: DEFAULT_DEPOSIT_PCT }
+}
+
+// Inverse of calculateInstallment: how much can be financed for a given
+// monthly instalment budget.
+function principalForInstallment(installment: number, annualRatePct: number, termMonths: number) {
+  const monthlyRate = annualRatePct / 100 / 12
+  if (monthlyRate === 0) return installment * termMonths
+  return (installment * (1 - Math.pow(1 + monthlyRate, -termMonths))) / monthlyRate
+}
+
+export type Affordability = {
+  netIncome: number
+  totalExpenses: number
+  disposableIncome: number
+  rate: number
+  comfortableInstallment: number
+  maxVehiclePrice: number
+  qualifies: boolean
+  reason: string
+}
+
+// A real qualification check: net income minus actual monthly expenses,
+// not gross income against nothing. "Comfortable" instalment is capped at
+// 20% of what's left over each month (the same threshold used elsewhere in
+// the app), then converted back into an affordable vehicle price at the
+// user's estimated rate over 72 months with a 10% deposit.
+export function assessAffordability(user: UserProfile, totalExpenses: number): Affordability {
+  const netIncome = user.monthlyIncome
+  const disposable = netIncome - totalExpenses
+  const rate = estimateRate(user)
+
+  if (disposable <= 0) {
+    return {
+      netIncome,
+      totalExpenses,
+      disposableIncome: disposable,
+      rate,
+      comfortableInstallment: 0,
+      maxVehiclePrice: 0,
+      qualifies: false,
+      reason: 'Your monthly expenses meet or exceed your net income, so there is no room for a car instalment right now.',
+    }
+  }
+
+  const comfortableInstallment = disposable * 0.2
+  const principal = principalForInstallment(comfortableInstallment, rate, DEFAULT_TERM_MONTHS)
+  const maxVehiclePrice = principal / (1 - DEFAULT_DEPOSIT_PCT / 100)
+
+  const qualifies = maxVehiclePrice >= 50000
+  const reason = qualifies
+    ? `Based on ${netIncome > 0 ? 'your net income minus expenses' : 'your income'}, you have room for a comfortable instalment of around this amount without over-committing.`
+    : 'Your disposable income is too low for a comfortable vehicle instalment right now — consider reducing expenses or increasing your deposit.'
+
+  return { netIncome, totalExpenses, disposableIncome: disposable, rate, comfortableInstallment, maxVehiclePrice, qualifies, reason }
 }

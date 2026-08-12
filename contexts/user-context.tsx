@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { UserProfile } from '@/lib/data'
+import type { LanguageCode } from '@/lib/i18n'
 
 function mapProfile(row: any): UserProfile {
   return {
@@ -23,6 +24,15 @@ function mapProfile(row: any): UserProfile {
     savedListings: row.saved_listings,
     dateOfBirth: row.date_of_birth ?? null,
     licenseIssuedDate: row.license_issued_date ?? null,
+    expenseRent: row.expense_rent ?? 0,
+    expenseChildSupport: row.expense_child_support ?? 0,
+    expenseLoanRepayments: row.expense_loan_repayments ?? 0,
+    expenseGroceries: row.expense_groceries ?? 0,
+    expenseOther: row.expense_other ?? 0,
+    selectedCarId: row.selected_car_id ?? null,
+    rightsAcknowledged: row.rights_acknowledged ?? false,
+    rightsAcknowledgedAt: row.rights_acknowledged_at ?? null,
+    language: (row.language ?? 'en') as LanguageCode,
   }
 }
 
