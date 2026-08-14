@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, AlertTriangle, Lock, Trash2, Plus } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Lock, Trash2, Plus, Sparkles } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { useUser } from '@/contexts/user-context'
 import { supabase } from '@/lib/supabase'
@@ -9,6 +9,7 @@ import { getExpenses, addExpense, updateExpense, deleteExpense, type Expense } f
 import { useDb } from '@/lib/use-db'
 import { validateKnowYourself } from '@/lib/journey-validation'
 import { assessAffordability } from '@/lib/finance-estimate'
+import { buildProfileContext } from '@/lib/profile-context'
 import { provinces, type EmploymentStatus, type BuyingGoal } from '@/lib/data'
 import { formatRand } from '@/lib/format'
 
@@ -50,6 +51,9 @@ export default function KnowYourselfPage() {
   const [licenseDate, setLicenseDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [aiPoints, setAiPoints] = useState<string[] | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -120,6 +124,30 @@ export default function KnowYourselfPage() {
   async function handleRemoveExpense(id: string) {
     const ok = await deleteExpense(id)
     if (ok) setExpenses((prev) => prev.filter((e) => e.id !== id))
+  }
+
+  async function handleGetInsights() {
+    if (!user) return
+    setAiLoading(true)
+    setAiError(false)
+    try {
+      const summary = buildProfileContext(
+        { ...user, monthlyIncome: Number(monthlyIncome) || 0, dateOfBirth: dob || null, licenseIssuedDate: licenseDate || null },
+        totalExpenses,
+      )
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.points?.length) throw new Error('no points')
+      setAiPoints(data.points)
+    } catch {
+      setAiError(true)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   return (
@@ -315,6 +343,29 @@ export default function KnowYourselfPage() {
               Disposable income: <span className="font-medium text-foreground">{formatRand(affordability.disposableIncome)}</span>/mo
             </p>
             <p className="mt-1 text-muted-foreground">{affordability.reason}</p>
+
+            <div className="mt-3 border-t border-border/60 pt-3">
+              {aiPoints ? (
+                <ul className="space-y-1.5">
+                  {aiPoints.map((point, i) => (
+                    <li key={i} className="flex gap-2 text-xs leading-relaxed text-foreground">
+                      <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" />
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGetInsights}
+                  disabled={aiLoading}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary disabled:opacity-60"
+                >
+                  <Sparkles className="size-3.5" />
+                  {aiLoading ? 'Thinking…' : aiError ? 'Insights unavailable — try again' : 'Get AI insights on your numbers'}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
