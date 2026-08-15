@@ -11,6 +11,7 @@ import { validateKnowYourself } from '@/lib/journey-validation'
 import { assessAffordability } from '@/lib/finance-estimate'
 import { buildProfileContext } from '@/lib/profile-context'
 import { provinces, type EmploymentStatus, type BuyingGoal } from '@/lib/data'
+import { citiesByProvince } from '@/lib/sa-cities'
 import { formatRand } from '@/lib/format'
 
 const employmentOptions: EmploymentStatus[] = [
@@ -209,21 +210,34 @@ export default function KnowYourselfPage() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="City">
-                <input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                />
-              </Field>
               <Field label="Province">
                 <select
                   value={province}
-                  onChange={(e) => setProvince(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setProvince(next)
+                    if (!citiesByProvince[next]?.includes(city)) {
+                      setCity(citiesByProvince[next]?.[0] ?? '')
+                    }
+                  }}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                 >
                   {provinces.map((p) => (
                     <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="City">
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                >
+                  {!citiesByProvince[province]?.includes(city) && city && (
+                    <option value={city}>{city}</option>
+                  )}
+                  {(citiesByProvince[province] ?? []).map((c) => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </Field>
@@ -273,23 +287,16 @@ export default function KnowYourselfPage() {
 
           {/* Buying goal */}
           <section className="space-y-2 rounded-2xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold">Buying goal</h2>
-            <div className="grid grid-cols-1 gap-2">
+            <h2 className="text-sm font-semibold">What are you looking to do?</h2>
+            <select
+              value={buyingGoal}
+              onChange={(e) => setBuyingGoal(e.target.value as BuyingGoal)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+            >
               {goals.map((g) => (
-                <button
-                  key={g.value}
-                  type="button"
-                  onClick={() => setBuyingGoal(g.value)}
-                  className={`rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
-                    buyingGoal === g.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background text-muted-foreground'
-                  }`}
-                >
-                  {g.label}
-                </button>
+                <option key={g.value} value={g.value}>{g.label}</option>
               ))}
-            </div>
+            </select>
           </section>
 
           <button

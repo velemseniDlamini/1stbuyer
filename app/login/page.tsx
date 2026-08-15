@@ -54,55 +54,60 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6">
-      <div className="mb-8">
-        <Logo />
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-12">
+      <div className="mb-10">
+        <Logo className="h-10" />
       </div>
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6">
-        <h1 className="text-lg font-bold">{mode === 'sign-in' ? 'Sign in' : 'Create your account'}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {mode === 'sign-in'
-            ? 'Welcome back to your car-buying journey.'
-            : 'Set up your profile to get personalised buying power, credit tracking and more.'}
-        </p>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-              placeholder="••••••••"
-            />
-          </div>
+      <div className="w-full max-w-[380px]">
+        <div className="mb-7 text-center">
+          <h1 className="text-2xl font-bold tracking-tight">
+            {mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {mode === 'sign-in'
+              ? 'Sign in to continue your car-buying journey.'
+              : 'Set up your profile to get personalised buying power, credit tracking and more.'}
+          </p>
+        </div>
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
-          {info && <p className="text-xs text-success">{info}</p>}
+        <div className="rounded-2xl border border-border bg-card p-7">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Field label="Email">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm outline-none transition-colors focus:border-primary"
+                placeholder="you@example.com"
+              />
+            </Field>
+            <Field label="Password">
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm outline-none transition-colors focus:border-primary"
+                placeholder="••••••••"
+              />
+            </Field>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {loading && <Loader2 className="size-4 animate-spin" />}
-            {mode === 'sign-in' ? 'Sign in' : 'Sign up'}
-          </button>
-        </form>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {info && <p className="text-sm text-success">{info}</p>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-60"
+            >
+              {loading && <Loader2 className="size-4 animate-spin" />}
+              {mode === 'sign-in' ? 'Sign in' : 'Sign up'}
+            </button>
+          </form>
+        </div>
 
         <button
           type="button"
@@ -111,11 +116,23 @@ export default function LoginPage() {
             setError(null)
             setInfo(null)
           }}
-          className="mt-4 w-full text-center text-xs text-muted-foreground hover:text-primary"
+          className="mt-6 w-full text-center text-sm text-muted-foreground transition-colors hover:text-primary"
         >
-          {mode === 'sign-in' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+          {mode === 'sign-in' ? "Don't have an account? " : 'Already have an account? '}
+          <span className="font-semibold text-primary">
+            {mode === 'sign-in' ? 'Sign up' : 'Sign in'}
+          </span>
         </button>
       </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</label>
+      {children}
     </div>
   )
 }
