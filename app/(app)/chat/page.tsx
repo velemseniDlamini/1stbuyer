@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 
 type Message =
   | { id: string; role: 'user'; content: string }
-  | { id: string; role: 'assistant'; reply: GuardianReply }
+  | { id: string; role: 'assistant'; reply: GuardianReply; offline?: boolean }
 
 type Attachment = { filename: string; content: string }
 
@@ -141,9 +141,10 @@ export default function ChatPage() {
       setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'assistant', reply }])
     } catch {
       // Graceful degradation: fall back to the offline rule-based advocate
-      // rather than leaving the user with no answer.
+      // rather than leaving the user with no answer. Flagged as `offline`
+      // so the UI can be honest that this isn't the AI-generated reply.
       const reply = askGuardian(trimmed)
-      setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'assistant', reply }])
+      setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'assistant', reply, offline: true }])
     } finally {
       setThinking(false)
     }
@@ -184,7 +185,7 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            <AssistantBubble key={msg.id} reply={msg.reply} />
+            <AssistantBubble key={msg.id} reply={msg.reply} offline={msg.offline} />
           ),
         )}
 
@@ -306,7 +307,7 @@ export default function ChatPage() {
   )
 }
 
-function AssistantBubble({ reply }: { reply: GuardianReply }) {
+function AssistantBubble({ reply, offline }: { reply: GuardianReply; offline?: boolean }) {
   return (
     <div className="flex gap-2">
       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -316,6 +317,12 @@ function AssistantBubble({ reply }: { reply: GuardianReply }) {
         <div className="rounded-2xl rounded-tl-md border border-border bg-card px-4 py-3 text-sm leading-relaxed">
           {reply.answer}
         </div>
+
+        {offline && (
+          <p className="text-[11px] text-muted-foreground">
+            ⚠ AI is temporarily unavailable — this is an offline scripted reply.
+          </p>
+        )}
 
         {reply.citation && (
           <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
