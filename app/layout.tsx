@@ -15,8 +15,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: '1st Buyer — Your Fair Advantage in Car Buying',
   description:
-    '1st Buyer is an AI-powered car buying companion for South Africans. Know your rights under the NCA & CPA, check your credit, compare insurance, analyse quotations and find trusted dealerships.',
-  generator: 'v0.app',
+    '1st Buyer helps South Africans buy cars with confidence. Know your rights under the NCA & CPA, check your credit, compare insurance, analyse quotations and find trusted dealerships.',
   applicationName: '1st Buyer',
   keywords: [
     'car buying South Africa',

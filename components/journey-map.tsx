@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Check, Lock, ChevronDown, ArrowRight, Clock } from 'lucide-react'
+import { Check, Lock, ChevronDown, ArrowRight } from 'lucide-react'
 import { type Stage } from '@/lib/data'
 import { cn } from '@/lib/utils'
 
@@ -93,10 +93,6 @@ function StageCard({
       {open && (
         <div className="border-t border-border px-4 pb-4 pt-3">
           <p className="text-sm text-muted-foreground">{stage.description}</p>
-
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Clock className="size-3.5" /> ≈ {stage.time}
-          </div>
 
           <ul className="mt-3 space-y-2">
             {stage.actions.map((action) => (

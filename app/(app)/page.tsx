@@ -189,8 +189,7 @@ export default function DashboardPage() {
             </div>
             <h2 className="text-lg font-bold">{currentStage.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{currentStage.description}</p>
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">≈ {currentStage.time}</span>
+            <div className="mt-4 flex items-center justify-end">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
                 Continue <ArrowRight className="size-4" />
               </span>

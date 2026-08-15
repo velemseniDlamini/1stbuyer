@@ -1,23 +1,15 @@
-import { ShieldCheck } from 'lucide-react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
-export function Logo({
-  className,
-  showText = true,
-}: {
-  className?: string
-  showText?: boolean
-}) {
+export function Logo({ className }: { className?: string }) {
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground gold-glow">
-        <ShieldCheck className="size-5" />
-      </span>
-      {showText && (
-        <span className="text-base font-bold tracking-tight">
-          1st <span className="text-primary">Buyer</span>
-        </span>
-      )}
-    </div>
+    <Image
+      src="/brand/logo-wordmark.png"
+      alt="1st Buyer"
+      width={393}
+      height={241}
+      priority
+      className={cn('h-8 w-auto', className)}
+    />
   )
 }
