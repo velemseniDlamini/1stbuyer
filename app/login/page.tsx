@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { supabase } from '@/lib/supabase'
+import { logLoginEvent } from '@/lib/db'
 
 type Mode = 'sign-in' | 'sign-up'
 
@@ -28,12 +29,13 @@ export default function LoginPage() {
     setInfo(null)
 
     if (mode === 'sign-in') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       setLoading(false)
       if (error) {
         setError(error.message)
         return
       }
+      if (data.user) logLoginEvent(data.user.id)
       router.push('/')
       router.refresh()
     } else {
@@ -44,6 +46,7 @@ export default function LoginPage() {
         return
       }
       if (data.session) {
+        if (data.user) logLoginEvent(data.user.id)
         router.push('/onboarding')
         router.refresh()
       } else {

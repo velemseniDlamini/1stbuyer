@@ -270,3 +270,19 @@ export async function addQuotation(profileId: string, quotation: Quotation) {
   })
   return !error
 }
+
+// Analytics — feeds the hidden admin stats page only. Both writes are
+// scoped to the caller's own row by RLS (auth.uid() = user_id), so a
+// regular user can never read or write another user's events.
+
+export async function logLoginEvent(userId: string) {
+  if (!supabase) return
+  await supabase.from('login_events').insert({ user_id: userId })
+}
+
+export async function pingSession(sessionId: string, userId: string) {
+  if (!supabase) return
+  await supabase
+    .from('sessions')
+    .upsert({ session_id: sessionId, user_id: userId, last_seen_at: new Date().toISOString() }, { onConflict: 'session_id' })
+}

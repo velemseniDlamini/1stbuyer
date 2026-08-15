@@ -31,7 +31,8 @@ create table if not exists profiles (
   selected_car_id text,
   rights_acknowledged boolean not null default false,
   rights_acknowledged_at timestamptz,
-  language text not null default 'en'
+  language text not null default 'en',
+  created_at timestamptz not null default now()
 );
 
 -- Unlimited free-form expense entries per profile, replacing the old fixed
@@ -246,6 +247,27 @@ select p.id, 'Toyota Corolla Cross 1.8 XS (2023)', 389900, 39000, 72, 14.25, 30,
 from profiles p
 where p.first_name = 'Thabo'
 on conflict do nothing;
+
+-- 10. Analytics — see supabase/add_analytics.sql for the full migration
+-- (this app has since moved to per-user RLS; see auth_migration.sql).
+create table if not exists login_events (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+create table if not exists sessions (
+  session_id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  started_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+alter table login_events enable row level security;
+alter table sessions enable row level security;
+create policy "own login_events insert" on login_events for insert with check (auth.uid() = user_id);
+create policy "own login_events select" on login_events for select using (auth.uid() = user_id);
+create policy "own sessions insert" on sessions for insert with check (auth.uid() = user_id);
+create policy "own sessions update" on sessions for update using (auth.uid() = user_id);
+create policy "own sessions select" on sessions for select using (auth.uid() = user_id);
 
 -- Row Level Security: allow public read (anon key) since this is demo data,
 -- no auth wired up yet. Tighten this once real user auth is in place.

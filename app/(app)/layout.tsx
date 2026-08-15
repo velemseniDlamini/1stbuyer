@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { useUser } from '@/contexts/user-context'
+import { useSessionHeartbeat } from '@/lib/use-session-heartbeat'
 
 export default function AppGroupLayout({
   children,
@@ -13,6 +14,8 @@ export default function AppGroupLayout({
 }) {
   const { session, profile, loading } = useUser()
   const router = useRouter()
+
+  useSessionHeartbeat(session?.user.id)
 
   useEffect(() => {
     if (loading) return
