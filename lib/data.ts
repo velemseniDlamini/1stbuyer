@@ -208,21 +208,6 @@ export const journeyStages: Stage[] = [
   },
   {
     id: 3,
-    key: 'know-market',
-    title: 'Know The Market',
-    tagline: 'Research',
-    description: 'Compare vehicles, depreciation and total cost of ownership for SA.',
-    time: '20 min',
-    status: 'current',
-    actions: [
-      { label: 'Compare 3 vehicles', done: true },
-      { label: 'Run depreciation calculator', done: false },
-      { label: 'Estimate total cost of ownership', done: false },
-    ],
-    href: '/explore',
-  },
-  {
-    id: 4,
     key: 'know-deal',
     title: 'Know Your Deal',
     tagline: 'Financing',
@@ -237,7 +222,7 @@ export const journeyStages: Stage[] = [
     href: '/finance',
   },
   {
-    id: 5,
+    id: 4,
     key: 'find-car',
     title: 'Find Your Car',
     tagline: 'Dealerships',
@@ -252,7 +237,7 @@ export const journeyStages: Stage[] = [
     href: '/explore',
   },
   {
-    id: 6,
+    id: 5,
     key: 'seal-deal',
     title: 'Seal The Deal',
     tagline: 'Documentation',
@@ -267,7 +252,7 @@ export const journeyStages: Stage[] = [
     href: '/documents',
   },
   {
-    id: 7,
+    id: 6,
     key: 'protect-ride',
     title: 'Protect Your Ride',
     tagline: 'Insurance & Aftercare',

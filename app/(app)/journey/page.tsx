@@ -26,7 +26,7 @@ export default function JourneyPage() {
 
   return (
     <div>
-      <PageHeader title="Your buying journey" subtitle="7 stages to a fair deal" back={false} />
+      <PageHeader title="Your buying journey" subtitle={`${journeyStages.length} stages to a fair deal`} back={false} />
       <div className="px-4 py-5">
         <div className="mb-6 rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between">

@@ -89,7 +89,7 @@ export default function RightsPage() {
 
   return (
     <div>
-      <PageHeader title="Know your rights" subtitle="Step 2 of 7 — as a consumer & credit user in SA" />
+      <PageHeader title="Know your rights" subtitle="Step 2 of 6 — as a consumer & credit user in SA" />
       <div className="space-y-4 px-4 py-5">
         {user.rightsAcknowledged && (
           <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 p-3 text-sm text-success">

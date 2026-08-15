@@ -171,12 +171,12 @@ export async function getCars(): Promise<Car[]> {
 }
 
 // Choosing a car is the real trigger that moves the buyer journey forward —
-// it marks the "Find Your Car" stage (5 of 7) as done for this user. journey
+// it marks the "Find Your Car" stage (4 of 6) as done for this user. journey
 // progress is stored as a 0-100 number on the profile; deriveStageStatuses()
 // (lib/data.ts) turns that into per-stage completed/current/locked state.
 export async function selectCar(profileId: string, carId: string) {
   if (!supabase) return false
-  const FIND_CAR_STAGE_PROGRESS = Math.ceil((5 / 7) * 100) // 72%
+  const FIND_CAR_STAGE_PROGRESS = Math.ceil((4 / 6) * 100) // 67%
   const { data: profile } = await supabase
     .from('profiles')
     .select('journey_progress')

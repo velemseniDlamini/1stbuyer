@@ -152,7 +152,7 @@ export default function KnowYourselfPage() {
 
   return (
     <div>
-      <PageHeader title="Know yourself" subtitle="Step 1 of 7 — your real affordability picture" />
+      <PageHeader title="Know yourself" subtitle="Step 1 of 6 — your real affordability picture" />
       <div className="space-y-6 px-4 py-5">
         {/* Validation banner */}
         <div
