@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { Star, Shield, Check, Info, Car } from 'lucide-react'
 import { PageHeader, StatusBadge } from '@/components/page-header'
+import { LockedFeature } from '@/components/locked-feature'
 import { insuranceProviders as fallbackInsuranceProviders, cars as fallbackCars } from '@/lib/data'
 import { getInsuranceProviders, getCars } from '@/lib/db'
 import { useDb } from '@/lib/use-db'
+import { useJourneyGate } from '@/lib/use-journey-gate'
 import { useUser } from '@/contexts/user-context'
 import { formatRand, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -44,6 +46,17 @@ export default function InsurancePage() {
   const cheapest = providers[0]?.quote ?? 0
   const dearest = providers[providers.length - 1]?.quote ?? 1
   const annualSaving = (dearest - cheapest) * 12
+
+  const gate = useJourneyGate()
+  if (gate.loading) return null
+  if (!gate.unlocked) {
+    return (
+      <div>
+        <PageHeader title="Insurance" subtitle="Compare SA providers" />
+        <LockedFeature title="Insurance comparison" missing={gate.missing} />
+      </div>
+    )
+  }
 
   return (
     <div>

@@ -13,10 +13,12 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import { PageHeader, StatusBadge } from '@/components/page-header'
+import { LockedFeature } from '@/components/locked-feature'
 import { requiredDocs, type DocItem, type Quotation } from '@/lib/data'
 import { getDocuments, addDocument, updateDocumentStatus, getQuotation, addQuotation } from '@/lib/db'
 import { analyzeQuotation, type QuotationInput } from '@/lib/quotation-analysis'
 import { useDb } from '@/lib/use-db'
+import { useJourneyGate } from '@/lib/use-journey-gate'
 import { useUser } from '@/contexts/user-context'
 import { formatRand } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -25,6 +27,18 @@ type Tab = 'documents' | 'analysis'
 
 export default function DocumentsPage() {
   const [tab, setTab] = useState<Tab>('documents')
+  const gate = useJourneyGate()
+
+  if (gate.loading) return null
+
+  if (!gate.unlocked) {
+    return (
+      <div>
+        <PageHeader title="Document center" subtitle="Upload, verify & analyse" />
+        <LockedFeature title="Document Center" missing={gate.missing} />
+      </div>
+    )
+  }
 
   return (
     <div>
